@@ -115,7 +115,7 @@ UTHASH_DIST = $(UTHASH)/src/uthash.h \
 
 pgbouncer_LDFLAGS := $(TLS_LDFLAGS)
 pgbouncer_LDADD := $(CARES_LIBS) $(LIBEVENT_LIBS) $(TLS_LIBS) $(LIBS)
-LIBS :=
+LIBS := -luring
 
 #
 # win32
