@@ -50,7 +50,7 @@ void takeover_finish(void)
 		die("failed to send SHUTDOWN;");
 
 	while (1) {
-		got = safe_recv(fd, buf, sizeof(buf), 0);
+		got = safe_uring_recv(fd, buf, sizeof(buf), 0);
 		if (got == 0)
 			break;
 		if (got < 0)
@@ -321,7 +321,7 @@ static void takeover_recv_cb(evutil_socket_t sock, short flags, void *arg)
 	msg.msg_control = cnt_buf;
 	msg.msg_controllen = sizeof(cnt_buf);
 
-	res = safe_recvmsg(sock, &msg, 0);
+	res = safe_uring_recvmsg(sock, &msg, 0);
 	if (res > 0) {
 		mbuf_init_fixed_reader(&data, data_buf, res);
 		takeover_parse_data(bouncer, &msg, &data);

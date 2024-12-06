@@ -24,8 +24,12 @@
 #include <usual/socket.h>
 
 void safe_init_uring(void);
-ssize_t safe_uring_recv(int fd, void*buf, size_t len, int flags);
-ssize_t safe_uring_send(int fd, const void*buf, size_t len, int flags);
+ssize_t safe_uring_read(int fd, void *buf, size_t len)                        _MUSTCHECK;
+ssize_t safe_uring_write(int fd, const void *buf, size_t len)                 _MUSTCHECK;
+ssize_t safe_uring_recv(int fd, void*buf, size_t len, int flags);             _MUSTCHECK
+ssize_t safe_uring_send(int fd, const void*buf, size_t len, int flags);       _MUSTCHECK
+ssize_t safe_uring_recvmsg(int fd, struct msghdr *msg, int flags)             _MUSTCHECK;
+ssize_t safe_uring_sendmsg(int fd, const struct msghdr *msg, int flags)       _MUSTCHECK;
 
 /** read */
 ssize_t safe_read(int fd, void *buf, size_t len)                _MUSTCHECK;

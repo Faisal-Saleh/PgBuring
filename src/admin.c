@@ -314,7 +314,7 @@ static bool send_one_fd(PgSocket *admin,
 	slog_debug(admin, "sending socket list: fd=%d, len=%d",
 		   fd, (int)msg.msg_controllen);
 	if (msg.msg_controllen) {
-		res = safe_sendmsg(sbuf_socket(&admin->sbuf), &msg, 0);
+		res = safe_uring_sendmsg(sbuf_socket(&admin->sbuf), &msg, 0);
 	} else {
 		res = sbuf_op_send(&admin->sbuf, pkt->buf, pktbuf_written(pkt));
 	}

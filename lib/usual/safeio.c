@@ -52,13 +52,13 @@ recv:
     ret = io_uring_submit_and_wait(&ring, 1);
     if (ret == -EINTR) {
 		goto recv;
-    }else if(ret < 0){
+    } else if (ret < 0) {
 		return ret;
 	}
 
     // Get the completion queue entry (CQE)
     ret = io_uring_peek_cqe(&ring, &cqe);
-    if(ret < 0){
+    if (ret < 0) {
 		return ret;
 	}
 
@@ -72,7 +72,7 @@ recv:
 		goto recv;
     }
 
-	if(ret < 0){
+	if (ret < 0) {
 		errno = -ret;
 		ret = -1;
 	}
@@ -85,21 +85,21 @@ ssize_t safe_uring_send(int fd, const void*buf, size_t len, int flags){
 	struct io_uring_cqe *cqe;
 	ssize_t ret;
 
-recv:
+send:
 	sqe = io_uring_get_sqe(&ring);
 	io_uring_prep_send(sqe, fd, buf, len, flags);
 
 	// Submit and wait for at least one CQE
     ret = io_uring_submit_and_wait(&ring, 1);
     if (ret == -EINTR) {
-		goto recv;
-    }else if(ret < 0){
+		goto send;
+    } else if (ret < 0) {
 		return ret;
 	}
 
     // Get the completion queue entry (CQE)
     ret = io_uring_peek_cqe(&ring, &cqe);
-    if(ret < 0){
+    if (ret < 0) {
 		return ret;
 	}
 
@@ -110,10 +110,10 @@ recv:
 
     // Check the result of the operation
     if (ret == -EINTR) {
-		goto recv;
+		goto send;
     }
 
-	if(ret < 0){
+	if (ret < 0) {
 		errno = -ret;
 		ret = -1;
 	}
@@ -121,6 +121,157 @@ recv:
 	return ret;
 }
 
+ssize_t safe_uring_read(int fd, void *buf, size_t len) {
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
+	ssize_t ret;
+
+read:
+	sqe = io_uring_get_sqe(&ring);
+	io_uring_prep_read(sqe, fd, buf, len, 0);
+
+	// Submit and wait for at least one CQE
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret == -EINTR) {
+		goto read;
+    } else if (ret < 0) {
+		return ret;
+	}
+
+    // Get the completion queue entry (CQE)
+    ret = io_uring_peek_cqe(&ring, &cqe);
+    if (ret < 0) {
+		return ret;
+	}
+
+	ret = cqe->res;
+
+	// Mark the CQE as seen
+	io_uring_cqe_seen(&ring, cqe);
+
+    // Check the result of the operation
+    if (ret == -EINTR) {
+		goto read;
+    }
+
+	return ret;
+}
+
+ssize_t safe_uring_write(int fd, const void *buf, size_t len) {
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
+	ssize_t ret;
+
+write:
+	sqe = io_uring_get_sqe(&ring);
+	io_uring_prep_write(sqe, fd, buf, len, 0);
+
+	// Submit and wait for at least one CQE
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret == -EINTR) {
+		goto write;
+    } else if(ret < 0) {
+		return ret;
+	}
+
+    // Get the completion queue entry (CQE)
+    ret = io_uring_peek_cqe(&ring, &cqe);
+    if (ret < 0) {
+		return ret;
+	}
+
+	ret = cqe->res;
+
+	// Mark the CQE as seen
+	io_uring_cqe_seen(&ring, cqe);
+
+    // Check the result of the operation
+    if (ret == -EINTR) {
+		goto write;
+    }
+
+	return ret;
+}
+
+ssize_t safe_uring_recvmsg(int fd, struct msghdr *msg, int flags) {
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
+	ssize_t ret;
+
+recvmsg:
+	sqe = io_uring_get_sqe(&ring);
+	io_uring_prep_recvmsg(sqe, fd, msg, flags);
+
+	// Submit and wait for at least one CQE
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret == -EINTR) {
+		goto recvmsg;
+    } else if(ret < 0) {
+		return ret;
+	}
+
+    // Get the completion queue entry (CQE)
+    ret = io_uring_peek_cqe(&ring, &cqe);
+    if (ret < 0) {
+		return ret;
+	}
+
+	ret = cqe->res;
+
+	// Mark the CQE as seen
+	io_uring_cqe_seen(&ring, cqe);
+
+    // Check the result of the operation
+    if (ret == -EINTR) {
+		goto recvmsg;
+    }
+
+	if (ret < 0) {
+		errno = -ret;
+		ret = -1;
+	}
+	return ret;
+}
+
+ssize_t safe_uring_sendmsg(int fd, const struct msghdr *msg, int flags) {
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
+	ssize_t ret;
+
+sendmsg:
+	sqe = io_uring_get_sqe(&ring);
+	io_uring_prep_sendmsg(sqe, fd, msg, flags);
+
+	// Submit and wait for at least one CQE
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret == -EINTR) {
+		goto sendmsg;
+    } else if(ret < 0) {
+		return ret;
+	}
+
+    // Get the completion queue entry (CQE)
+    ret = io_uring_peek_cqe(&ring, &cqe);
+    if (ret < 0) {
+		return ret;
+	}
+
+	ret = cqe->res;
+
+	// Mark the CQE as seen
+	io_uring_cqe_seen(&ring, cqe);
+
+    // Check the result of the operation
+    if (ret == -EINTR) {
+		goto sendmsg;
+    }
+
+	if (ret < 0) {
+		errno = -ret;
+		ret = -1;
+	}
+	return ret;
+}
 
 ssize_t safe_read(int fd, void *buf, size_t len)
 {

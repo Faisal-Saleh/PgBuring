@@ -774,7 +774,7 @@ static void write_pidfile(void)
 	fd = open(cf_pidfile, O_WRONLY | O_CREAT | O_EXCL, 0644);
 	if (fd < 0)
 		die("could not open pidfile '%s': %s", cf_pidfile, strerror(errno));
-	res = safe_write(fd, buf, strlen(buf));
+	res = safe_uring_write(fd, buf, strlen(buf));
 	if (res < 0)
 		die("could not write pidfile '%s': %s", cf_pidfile, strerror(errno));
 	close(fd);
