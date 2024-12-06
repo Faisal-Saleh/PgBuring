@@ -1112,12 +1112,12 @@ bool sbuf_answer(SBuf *sbuf, const void *buf, size_t len)
 
 static ssize_t raw_sbufio_recv(struct SBuf *sbuf, void *dst, size_t len)
 {
-	return safe_recv(sbuf->sock, dst, len, 0);
+	return safe_uring_recv(sbuf->sock, dst, len, 0);
 }
 
 static ssize_t raw_sbufio_send(struct SBuf *sbuf, const void *data, size_t len)
 {
-	return safe_send(sbuf->sock, data, len, 0);
+	return safe_uring_send(sbuf->sock, data, len, 0);
 }
 
 static int raw_sbufio_close(struct SBuf *sbuf)

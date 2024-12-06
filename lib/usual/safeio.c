@@ -28,22 +28,97 @@
 #include <usual/string.h>
 #include <usual/time.h>
 
+#include <linux/io_uring.h>
 #include <liburing.h>
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
 
+#define ENTRIES 32
 struct io_uring ring;
 
-void init_io_uring(void) {
-    if (io_uring_queue_init(QUEUE_DEPTH, &ring, 0) < 0) {
-        perror("io_uring_queue_init");
-        exit(1);
-    }
+void safe_init_uring(void){
+	int flags = 0;
+	io_uring_queue_init(ENTRIES, &ring, flags);
 }
 
-void cleanup_io_uring(void) {
-    io_uring_queue_exit(&ring);
+ssize_t safe_uring_recv(int fd, void*buf, size_t len, int flags){
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
+	ssize_t ret;
+
+recv:
+	sqe = io_uring_get_sqe(&ring);
+	io_uring_prep_recv(sqe, fd, buf, len, flags | MSG_DONTWAIT);
+
+	// Submit and wait for at least one CQE
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret == -EINTR) {
+		goto recv;
+    }else if(ret < 0){
+		return ret;
+	}
+
+    // Get the completion queue entry (CQE)
+    ret = io_uring_peek_cqe(&ring, &cqe);
+    if(ret < 0){
+		return ret;
+	}
+
+	ret = cqe->res;
+
+	// Mark the CQE as seen
+	io_uring_cqe_seen(&ring, cqe);
+
+    // Check the result of the operation
+    if (ret == -EINTR) {
+		goto recv;
+    }
+
+	if(ret < 0){
+		errno = -ret;
+		ret = -1;
+	}
+
+	return ret;
+}
+
+ssize_t safe_uring_send(int fd, const void*buf, size_t len, int flags){
+	struct io_uring_sqe *sqe;
+	struct io_uring_cqe *cqe;
+	ssize_t ret;
+
+recv:
+	sqe = io_uring_get_sqe(&ring);
+	io_uring_prep_send(sqe, fd, buf, len, flags);
+
+	// Submit and wait for at least one CQE
+    ret = io_uring_submit_and_wait(&ring, 1);
+    if (ret == -EINTR) {
+		goto recv;
+    }else if(ret < 0){
+		return ret;
+	}
+
+    // Get the completion queue entry (CQE)
+    ret = io_uring_peek_cqe(&ring, &cqe);
+    if(ret < 0){
+		return ret;
+	}
+
+	ret = cqe->res;
+
+	// Mark the CQE as seen
+	io_uring_cqe_seen(&ring, cqe);
+
+    // Check the result of the operation
+    if (ret == -EINTR) {
+		goto recv;
+    }
+
+	if(ret < 0){
+		errno = -ret;
+		ret = -1;
+	}
+
+	return ret;
 }
 
 
@@ -72,7 +147,12 @@ ssize_t safe_recv(int fd, void *buf, size_t len, int flags)
 	ssize_t res;
 	char ebuf[128];
 loop:
+	log_info("going to call receive");
+
 	res = recv(fd, buf, len, flags);
+
+	log_info("%ld received, %d and EINTR: %d", res, errno, EINTR);
+
 	if (res < 0 && errno == EINTR)
 		goto loop;
 	if (res < 0)
@@ -83,51 +163,20 @@ loop:
 	return res;
 }
 
-ssize_t safe_send(int fd, const void *buf, size_t len, int flags) {
-    struct io_uring_sqe *sqe;
-    struct io_uring_cqe *cqe;
-    int ret;
-
-    sqe = io_uring_get_sqe(&ring);
-    if (!sqe) {
-        fprintf(stderr, "Failed to get SQE\n");
-        return -1;
-    }
-
-    io_uring_prep_send(sqe, fd, buf, len, flags);
-
-    ret = io_uring_submit(&ring);
-    if (ret < 0) {
-        perror("io_uring_submit");
-        return ret;
-    }
-
-    ret = io_uring_wait_cqe(&ring, &cqe);
-    if (ret < 0) {
-        perror("io_uring_wait_cqe");
-        return ret;
-    }
-
-    ret = cqe->res;
-    io_uring_cqe_seen(&ring, cqe);
-
-    if (ret < 0) {
-        fprintf(stderr, "safe_send_io_uring error: %s\n", strerror(-ret));
-    }
-    return ret;
-
-// 	ssize_t res;
-// 	char ebuf[128];
-// loop:
-// 	res = send(fd, buf, len, flags);
-// 	if (res < 0 && errno == EINTR)
-// 		goto loop;
-// 	if (res < 0)
-// 		log_noise("safe_send(%d, %zu) = %s", fd, len,
-// 			  strerror_r(errno, ebuf, sizeof(ebuf)));
-// 	else if (cf_verbose > 2)
-// 		log_noise("safe_send(%d, %zu) = %zd", fd, len, res);
-// 	return res;
+ssize_t safe_send(int fd, const void *buf, size_t len, int flags)
+{
+	ssize_t res;
+	char ebuf[128];
+loop:
+	res = send(fd, buf, len, flags);
+	if (res < 0 && errno == EINTR)
+		goto loop;
+	if (res < 0)
+		log_noise("safe_send(%d, %zu) = %s", fd, len,
+			  strerror_r(errno, ebuf, sizeof(ebuf)));
+	else if (cf_verbose > 2)
+		log_noise("safe_send(%d, %zu) = %zd", fd, len, res);
+	return res;
 }
 
 int safe_close(int fd)

@@ -23,10 +23,9 @@
 
 #include <usual/socket.h>
 
-#define QUEUE_DEPTH 32
-
-void init_io_uring(void);
-void cleanup_io_uring(void);
+void safe_init_uring(void);
+ssize_t safe_uring_recv(int fd, void*buf, size_t len, int flags);
+ssize_t safe_uring_send(int fd, const void*buf, size_t len, int flags);
 
 /** read */
 ssize_t safe_read(int fd, void *buf, size_t len)                _MUSTCHECK;
